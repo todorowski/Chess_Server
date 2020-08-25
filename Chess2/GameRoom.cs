@@ -81,11 +81,11 @@ namespace GameBoardServer
                 if (Interpreter.ReadPromotePiece(message, out Vector2Int from, out string promoteTo) && gameBoard.PromotionPossibleForTeam(playerColor))
                 {
                     Console.WriteLine(playerColor + " promoted a piece to " + promoteTo + " : " + message);
-                    if(gameBoard.PromotePieceTo(from, promoteTo))
+                    if (gameBoard.PromotePieceTo(from, promoteTo))
                         whiteTurn = !whiteTurn;
                 }
 
-                //Move a piece
+                //Move a piece 
                 if (Interpreter.ReadMovePiece(message, out from, out Vector2Int to) && !gameBoard.PromotionPossibleForTeam(playerColor))
                 {
                     Console.WriteLine(playerColor + " player made move: " + message);
@@ -93,9 +93,12 @@ namespace GameBoardServer
                     {
                         if(gameBoard.MovePiece(from, to))
                         {
+                            //send from, to and color green because move succeeded
                             if (!gameBoard.PromotionPossibleForTeam(playerColor))
                                 whiteTurn = !whiteTurn;
                         }
+
+                        //send from, to and color red because move failed
                     }
                 }
 

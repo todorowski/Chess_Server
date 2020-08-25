@@ -125,12 +125,35 @@ namespace GameBoardServer
             return false;
         }
 
-        public static bool ReadInfoMessage(string message, out Vector2Int from, out Vector2Int to)
+        public static bool ReadInfoMessage(string message, out int messageType, out string content)
         {
+            string[] messages = message.Split('&');
 
-            from = new Vector2Int(0, 0);
-            to = new Vector2Int(0, 0);
+            if(messages.Length == 2)
+            {
+                messageType = int.Parse(messages[0]);
+                content = messages[1];
+                return true;
+            }
+
+            messageType = -1;
+            content = "";
             return false;
+        }
+
+        public static bool ReadColorSquareMessage(string message, out Vector2Int square, int r, int g, int b, int a)
+        {
+             
+        }
+
+        public static string WriteColorSquareMessage(string message, Vector2Int square, int r, int g, int b, int a)
+        {
+            return "C " + square.x + "," + square.y + "," + " " + r + " " + g + " " + b + " " + a;
+        }
+
+        public static string WriteInfoMessage(int messageType, string message)
+        {
+            return messageType + " " + message;
         }
 
         public static string WriteJoinGame(int gameID)
