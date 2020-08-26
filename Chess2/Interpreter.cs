@@ -129,7 +129,7 @@ namespace GameBoardServer
         {
             string[] messages = message.Split('&');
 
-            if(messages.Length == 2)
+            if(messages.Length == 3 && messages[0] == "I")
             {
                 messageType = int.Parse(messages[0]);
                 content = messages[1];
@@ -141,14 +141,34 @@ namespace GameBoardServer
             return false;
         }
 
-        public static bool ReadColorSquareMessage(string message, out Vector2Int square, int r, int g, int b, int a)
+        public static bool ReadColorSquareMessage(string message, out Vector2Int square, out int r, out int g, out int b, out int a)
         {
-             
+            string[] messages = message.Split(' ');
+
+            if(messages.Length == 3 && messages[0] == "C")
+            {
+                string[] messages1 = messages[1].Split(',');
+                string[] messages2 = messages[2].Split(',');
+
+                square = new Vector2Int(int.Parse(messages1[0]), int.Parse(messages1[1]));
+                r = int.Parse(messages2[0]);
+                g = int.Parse(messages2[1]); ;
+                b = int.Parse(messages2[2]); ;
+                a = int.Parse(messages2[3]); ;
+                return true;
+            }
+
+            square = new Vector2Int(0, 0);
+            r = 0;
+            g = 0;
+            b = 0;
+            a = 0;
+            return false;
         }
 
         public static string WriteColorSquareMessage(string message, Vector2Int square, int r, int g, int b, int a)
         {
-            return "C " + square.x + "," + square.y + "," + " " + r + " " + g + " " + b + " " + a;
+            return "C " + square.x + "," + square.y + " " + r + "," + g + "," + b + "," + a;
         }
 
         public static string WriteInfoMessage(int messageType, string message)

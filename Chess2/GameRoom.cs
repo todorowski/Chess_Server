@@ -93,12 +93,10 @@ namespace GameBoardServer
                     {
                         if(gameBoard.MovePiece(from, to))
                         {
-                            //send from, to and color green because move succeeded
+                            Interpreter.WriteInfoMessage(1, "Player made move");
                             if (!gameBoard.PromotionPossibleForTeam(playerColor))
                                 whiteTurn = !whiteTurn;
                         }
-
-                        //send from, to and color red because move failed
                     }
                 }
 
