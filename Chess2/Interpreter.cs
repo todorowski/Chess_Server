@@ -131,8 +131,8 @@ namespace GameBoardServer
 
             if(messages.Length == 3 && messages[0] == "I")
             {
-                messageType = int.Parse(messages[0]);
-                content = messages[1];
+                messageType = int.Parse(messages[1]);
+                content = messages[2];
                 return true;
             }
 
@@ -173,7 +173,7 @@ namespace GameBoardServer
 
         public static string WriteInfoMessage(int messageType, string message)
         {
-            return messageType + " " + message;
+            return "I" + "&" + messageType + "&" + message;
         }
 
         public static string WriteJoinGame(int gameID)

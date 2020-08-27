@@ -93,7 +93,7 @@ namespace GameBoardServer
                     {
                         if(gameBoard.MovePiece(from, to))
                         {
-                            Interpreter.WriteInfoMessage(1, "Player made move");
+                            logMessage($"{playerColor} made a move from ({from.x}, {from.y}) to ({to.x}, {to.y})");
                             if (!gameBoard.PromotionPossibleForTeam(playerColor))
                                 whiteTurn = !whiteTurn;
                         }
@@ -103,6 +103,13 @@ namespace GameBoardServer
                 Console.WriteLine("Sending all players in " + gameRoomID + " the boardState");
                 foreach (Player p in players)
                     p.sendData(Interpreter.WriteGameBoard(gameBoard.GetBoardState()));
+            }
+        }
+
+        private void logMessage(string message)
+        {
+            foreach (Player p in players){
+                p.sendData(Interpreter.WriteInfoMessage(1, message));
             }
         }
     }
