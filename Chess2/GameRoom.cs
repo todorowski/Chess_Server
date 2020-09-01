@@ -8,6 +8,8 @@ namespace GameBoardServer
     {
         GameBoard gameBoard = new GameBoard();
         List<Player> players = new List<Player>();
+        Dictionary<Player, List<Vector2Int>> colorListDictionary = new Dictionary<Player, List<Vector2Int>>();
+
         int gameRoomID;
         bool whiteTurn = true;
 
@@ -15,7 +17,6 @@ namespace GameBoardServer
         {
             gameRoomID = ID;
         }
-
         public void AddPlayer(Player p)
         {
             Console.WriteLine("Player joined room: " + gameRoomID);
@@ -26,12 +27,10 @@ namespace GameBoardServer
             Console.WriteLine("Sending joined player the boardState");
             p.sendData(Interpreter.WriteGameBoard(gameBoard.GetBoardState()));
         }
-
         public void PlayerDisconnectedCallback(Player p)
         {
             RemovePlayer(p);
         }
-
         public void RemovePlayer(Player p)
         {
             lock (players)
@@ -49,7 +48,6 @@ namespace GameBoardServer
                 }
             }
         }
-
         private void playerMessageCallback(Player player, string message)
         {
             //which team is the player on?
@@ -57,10 +55,12 @@ namespace GameBoardServer
             if (players.Count >= 1 && players[0] == player)
             {
                 playerColor = "white";
+                headerMessage("You play as white", player);
             }
             else if(players.Count >= 2 && players[1] == player)
             {
                 playerColor = "black";
+                headerMessage("You play as black", player);
             }
             else
             {
@@ -88,6 +88,7 @@ namespace GameBoardServer
                 //Move a piece 
                 if (Interpreter.ReadMovePiece(message, out from, out Vector2Int to) && !gameBoard.PromotionPossibleForTeam(playerColor))
                 {
+                    ClearAllColor(player);
                     Console.WriteLine(playerColor + " player made move: " + message);
                     if (gameBoard.GetPiece(from) != null && playerColor == gameBoard.GetPiece(from).Color)
                     {
@@ -95,7 +96,35 @@ namespace GameBoardServer
                         {
                             logMessage($"{playerColor} made a move from ({from.x}, {from.y}) to ({to.x}, {to.y})");
                             if (!gameBoard.PromotionPossibleForTeam(playerColor))
+                            {
+                                foreach(Player p in players)
+                                {
+                                    ColorSquareMessageGreen(to, p);
+                                    ColorSquareMessageGreen(from, p);
+                                }
                                 whiteTurn = !whiteTurn;
+                            }
+                        }
+                        else
+                        {
+                            headerMessage("That is an illegal move!", player);
+                            ColorSquareMessageRed(to, player);
+                            ColorSquareMessageRed(from, player);
+
+                            for(int i = 0; i < 8; i++)
+                            {
+                                for(int j = 0; j < 8; j++)
+                                {
+                                    Vector2Int square = new Vector2Int(i, j);
+
+                                    if (gameBoard.GetPiece(from).CheckMove(square))
+                                    {
+                                        ColorSquareMessageYellow(from, player);
+                                        ColorSquareMessageYellow(square, player);
+                                    }
+                                }
+                            }
+                            
                         }
                     }
                 }
@@ -105,12 +134,79 @@ namespace GameBoardServer
                     p.sendData(Interpreter.WriteGameBoard(gameBoard.GetBoardState()));
             }
         }
-
+        private void headerMessage(string message, Player p)
+        {
+            p.sendData(Interpreter.WriteInfoMessage(2, message));
+        }
+        private void headerMessageForAll(string message)
+        {
+            foreach (Player p in players)
+            {
+                p.sendData(Interpreter.WriteInfoMessage(2, message));
+            }
+        }
         private void logMessage(string message)
         {
-            foreach (Player p in players){
+            foreach (Player p in players)
+            {
                 p.sendData(Interpreter.WriteInfoMessage(1, message));
             }
+        }
+
+        //Color methods!
+        private void ColorSquareMessage(Vector2Int square, Player p, int r, int g, int b, int a)
+        {
+            p.sendData(Interpreter.WriteColorSquareMessage(square, r, g, b, a));
+            if (!colorListDictionary.ContainsKey(p))
+            {
+                //add a new list
+                List<Vector2Int> list = new List<Vector2Int>();
+                colorListDictionary.Add(p, list);
+                list.Add(square);
+            }
+            else
+            {
+                colorListDictionary[p].Add(square);
+            }
+        }
+        private void ColorSquareMessageRedForAll(Vector2Int square)
+        {
+            foreach (Player p in players)
+            {
+                ColorSquareMessageRed(square, p);
+            }
+        }
+        private void ColorSquareMessageRed(Vector2Int square, Player p)
+        {
+            ColorSquareMessage(square, p, 241, 24, 79, 100);
+        }
+        private void ColorSquareMessageGreenForAll(Vector2Int square)
+        {
+            foreach (Player p in players)
+            {
+                ColorSquareMessageGreen(square, p);
+            }
+        }
+        private void ColorSquareMessageGreen(Vector2Int square, Player p)
+        {
+            ColorSquareMessage(square, p, 52, 214, 77, 100);
+        }
+        private void ColorSquareMessageYellow(Vector2Int square, Player p)
+        {
+            ColorSquareMessage(square, p, 245, 228, 20, 100);
+        }
+        private void ClearAllColor(Player p)
+        {
+            if (!colorListDictionary.ContainsKey(p))
+                return;
+
+            //remove the color from each square in the players list
+            List<Vector2Int> allColoredSquiares = colorListDictionary[p];
+            for (int i = 0; i < allColoredSquiares.Count; i++)
+            {
+                p.sendData(Interpreter.WriteColorSquareMessage(allColoredSquiares[i], 0, 0, 0, 0));
+            }
+            colorListDictionary[p].Clear();  
         }
     }
 }

@@ -58,7 +58,7 @@ public class Pawn : Piece
             }
 
             //two step
-            if (MyPosition.y == 6 && numberOfSteps.y == -2 && BoardState[move.x, move.y] == null && BoardState[move.x, move.y + 1] == null)
+            if (MyPosition.y == 6 && numberOfSteps.y == -2 && numberOfSteps.x == 0 && BoardState[move.x, move.y] == null && BoardState[move.x, move.y + 1] == null)
             {
                 return true;
             }

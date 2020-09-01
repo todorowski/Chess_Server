@@ -105,7 +105,6 @@ namespace GameBoardServer
             gameBoard.SetGameBoardState(boardState);
             return true;
         }
-
         public static bool ReadPromotePiece(string message, out Vector2Int from, out string promoteType)
         {
             string[] messages = message.Split(' ');
@@ -124,7 +123,6 @@ namespace GameBoardServer
             promoteType = " ";
             return false;
         }
-
         public static bool ReadInfoMessage(string message, out int messageType, out string content)
         {
             string[] messages = message.Split('&');
@@ -140,7 +138,6 @@ namespace GameBoardServer
             content = "";
             return false;
         }
-
         public static bool ReadColorSquareMessage(string message, out Vector2Int square, out int r, out int g, out int b, out int a)
         {
             string[] messages = message.Split(' ');
@@ -166,27 +163,25 @@ namespace GameBoardServer
             return false;
         }
 
-        public static string WriteColorSquareMessage(string message, Vector2Int square, int r, int g, int b, int a)
+        public static string WriteColorSquareMessage(Vector2Int square, int r, int g, int b, int a)
         {
-            return "C " + square.x + "," + square.y + " " + r + "," + g + "," + b + "," + a;
+            return "C " + square.x + "," + square.y + " " + r + "," + g + "," + b + "," + a + "|";
         }
-
         public static string WriteInfoMessage(int messageType, string message)
         {
-            return "I" + "&" + messageType + "&" + message;
+            return "I" + "&" + messageType + "&" + message + "|";
         }
-
         public static string WriteJoinGame(int gameID)
         {
-            return "J " + gameID;
+            return "J " + gameID + "|";
         }
         public static string WriteLeaveGame(int gameID)
         {
-            return "L " + gameID;
+            return "L " + gameID + "|";
         }
         public static string WriteMovePiece(Vector2Int from, Vector2Int to)
         {
-            return "M " + from.x + "," + from.y + " " + to.x + "," + to.y;
+            return "M " + from.x + "," + from.y + " " + to.x + "," + to.y + "|";
         }
         private static string WritePiece(Piece piece)
         {
@@ -221,12 +216,11 @@ namespace GameBoardServer
                     result += WritePiece(pieces[x, y]) + " ";
                 }
             }
-            return result.Substring(0, result.Length-1);
+            return result.Substring(0, result.Length-1) + "|";
         }
-
         public static string WritePromotePiece(Vector2Int from, string promoteType)
         {
-            return "P" + from.x + "," + from.y + promoteType;
+            return "P" + from.x + "," + from.y + promoteType + "|";
         }
     }
 }
