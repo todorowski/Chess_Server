@@ -9,6 +9,12 @@ public class GameBoard
     public List<Piece> blackTeam = new List<Piece>();
     public Piece whiteKing;
     public Piece blackKing;
+    public Action remiCallback;
+
+    public Piece LastWhitePawnToMoveTwoSteps;
+    public Piece LastBlackPawnToMoveTwoSteps;
+
+    private int howCloseToRemi = 0;
     //Constructor
     public GameBoard()
     {
@@ -147,23 +153,76 @@ public class GameBoard
     //Inteface
     public bool MovePiece(Vector2Int from, Vector2Int to)
     {
+        //kolla vilket lag, sätt till null
+        //check whose turn it is, set to true/false based on this
+        if(boardState[from.x, from.y].Color == "white" && boardState[from.x, from.y] is Pawn && (from.y - to.y == 2))
+        {
+            LastWhitePawnToMoveTwoSteps = boardState[from.x, from.y];
+        }
+        if(boardState[from.x, from.y].Color == "black" && boardState[from.x, from.y] is Pawn && (from.y - to.y == 2))
+        {
+            LastBlackPawnToMoveTwoSteps = boardState[from.x, from.y];
+        }
+
+        LastWhitePawnToMoveTwoSteps = null;
+        LastBlackPawnToMoveTwoSteps = null;
+
         if (!MovePieceIsLegal(from, to))
             return false;
 
         //Is this enpassant 
-        if(DoEnpassant(from, to))
+        if (DoEnpassant(from, to))
+        {
+            howCloseToRemi = 0;
+            //only set to null if I am the one who does en passant
+
+            if(boardState[from.x, from.y].Color == "white")
+            {
+                LastWhitePawnToMoveTwoSteps = null;
+            }
+            else
+            {
+                LastBlackPawnToMoveTwoSteps = null;
+            }
             return true;
+        }
         //Is this a castle
         if (DoCastling(from, to))
+        {
+            howCloseToRemi++;
+
+            if(boardState[from.x, from.y].Color == "white")
+            {
+                LastWhitePawnToMoveTwoSteps = null;
+            }
+            else
+            {
+                LastBlackPawnToMoveTwoSteps = null;
+            }
             return true;
-         
+        }
+
         //Move piece
+
         Piece killedPiece = boardState[to.x, to.y];
         Piece movedPiece = boardState[from.x, from.y];
         RemovePiece(killedPiece);
         boardState[to.x, to.y] = movedPiece;
         boardState[from.x, from.y] = null;
         movedPiece.HasMoved = true;
+
+        //50 moves remi rule
+        howCloseToRemi++;
+        if (killedPiece != null || movedPiece is Pawn)
+        {
+            howCloseToRemi = 0;
+        }
+        
+        if(howCloseToRemi >= 50) 
+        {
+            remiCallback?.Invoke();
+            return false;
+        }
         return true;
     }
     public bool PromotePieceTo(Vector2Int from, string promotionPiece)
@@ -280,6 +339,8 @@ public class GameBoard
             AddPiece(killedPiece, to);
         return !inCheck;
     }
+
+    //TODO: Add bool for enpassant 
     private bool EnPassantPossible(Vector2Int from, Vector2Int to)
     {
         Piece pawn = boardState[from.x, from.y];
@@ -293,30 +354,30 @@ public class GameBoard
             //en passant in right diagonal
             if (to.y == 2 && to.x == (from.x + 1))
             {
-                if (boardState[from.x + 1, from.y] != null && boardState[from.x + 1, from.y].Color == "white" && boardState[from.x + 1, from.y] is Pawn)
+                if (boardState[from.x + 1, from.y] != null && boardState[from.x + 1, from.y].Color == "white" && boardState[from.x + 1, from.y] is Pawn && boardState[to.x, to.y] == LastBlackPawnToMoveTwoSteps)
                 {
                     return true;
                 }
             //en passant in left diagonal
-            }else if(to.y == 2 && to.x == (from.x - 1))
+            }else if (to.y == 2 && to.x == (from.x - 1))
             {
-                if(boardState[from.x - 1, from.y] != null && boardState[from.x - 1, from.y].Color == "white" && boardState[from.x - 1, from.y] is Pawn)
+                if(boardState[from.x - 1, from.y] != null && boardState[from.x - 1, from.y].Color == "white" && boardState[from.x - 1, from.y] is Pawn && boardState[to.x, to.y] == LastBlackPawnToMoveTwoSteps)
                 {
                     return true;
                 }
             }
-        //white pawn is the attacker
+        //white pawn is the attacke
         }else if(pawn.Color == "white")
         {
             if(to.y == 5 && to.x == (from.x + 1))
             {
-                if(boardState[from.x + 1, from.y] != null && boardState[from.x + 1, from.y].Color == "black" && boardState[from.x + 1, from.y] is Pawn)
+                if(boardState[from.x + 1, from.y] != null && boardState[from.x + 1, from.y].Color == "black" && boardState[from.x + 1, from.y] is Pawn && boardState[to.x, to.y] == LastWhitePawnToMoveTwoSteps)
                 {
                     return true;
                 }
             }else if(to.y == 5 && to.x == (from.x - 1))
             {
-                if (boardState[from.x - 1, from.y] != null && boardState[from.x - 1, from.y].Color == "black" && boardState[from.x - 1, from.y] is Pawn)
+                if (boardState[from.x - 1, from.y] != null && boardState[from.x - 1, from.y].Color == "black" && boardState[from.x - 1, from.y] is Pawn && boardState[to.x, to.y] == LastWhitePawnToMoveTwoSteps)
                 {
                     return true;
                 }
@@ -351,7 +412,7 @@ public class GameBoard
                 if (boardState[1, 0] != null || boardState[2, 0] != null || boardState[3, 0] != null)
                     return false;
                 //Path Is checked?
-                if (CheckForCheck(new Vector2Int(2, 0), "black") || CheckForCheck(new Vector2Int(3, 0), "black"))
+                if (CheckForCheck(new Vector2Int(2, 0), "black") || CheckForCheck(new Vector2Int(3, 0), "black") || CheckForCheck(new Vector2Int(4,0), "black"))
                     return false;
 
                 return true;
@@ -366,7 +427,7 @@ public class GameBoard
                 if (boardState[5, 0] != null || boardState[6, 0] != null)
                     return false;
                 //Path Is checked?
-                if (CheckForCheck(new Vector2Int(5, 0), "black") || CheckForCheck(new Vector2Int(6, 0), "black"))
+                if (CheckForCheck(new Vector2Int(5, 0), "black") || CheckForCheck(new Vector2Int(6, 0), "black") || CheckForCheck(new Vector2Int(4,0), "black"))
                     return false;
 
                 return true;
@@ -391,7 +452,7 @@ public class GameBoard
                 if (boardState[1, 7] != null || boardState[2, 7] != null && boardState[3, 7] != null)
                     return false;
                 //Path Is checked?
-                if (CheckForCheck(new Vector2Int(2, 7), "white") || CheckForCheck(new Vector2Int(3, 7), "white"))
+                if (CheckForCheck(new Vector2Int(2, 7), "white") || CheckForCheck(new Vector2Int(3, 7), "white") || CheckForCheck(new Vector2Int(4,7), "white"))
                     return false;
 
                 return true;
@@ -406,7 +467,7 @@ public class GameBoard
                 if (boardState[5, 7] != null && boardState[6, 7] != null)
                     return false;
                 //Path Is checked?
-                if (CheckForCheck(new Vector2Int(5, 7), "white") || CheckForCheck(new Vector2Int(6, 7), "white"))
+                if (CheckForCheck(new Vector2Int(5, 7), "white") || CheckForCheck(new Vector2Int(6, 7), "white") || CheckForCheck(new Vector2Int(4,7), "white"))
                     return false;
 
                 return true;

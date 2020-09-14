@@ -9,18 +9,26 @@ namespace GameBoardServer
         GameBoard gameBoard = new GameBoard();
         List<Player> players = new List<Player>();
         Dictionary<Player, List<Vector2Int>> colorListDictionary = new Dictionary<Player, List<Vector2Int>>();
-
+        Dictionary<Player, List<string>> messageListDictionary = new Dictionary<Player, List<string>>();
         int gameRoomID;
         bool whiteTurn = true;
 
         public GameRoom(int ID)
         {
             gameRoomID = ID;
+            gameBoard.remiCallback += AjDetArOavgjort;
         }
         public void AddPlayer(Player p)
         {
             Console.WriteLine("Player joined room: " + gameRoomID);
             players.Add(p);
+            if(players.Count == 1)
+            {
+                headerMessage("You play as white", p);
+            }else if(players.Count == 2)
+            {
+                headerMessage("You play as black", p);
+            }
             p.messageAction += playerMessageCallback;
 
             p.playerDisconnected += PlayerDisconnectedCallback;
@@ -36,6 +44,8 @@ namespace GameBoardServer
             lock (players)
             {
                 Console.WriteLine("Player left room: " + gameRoomID);
+                ClearAllColor(p);
+                ClearAllLogMessages(p);
                 players.Remove(p);
                 p.messageAction -= playerMessageCallback;
                 p.playerDisconnected -= PlayerDisconnectedCallback;
@@ -94,7 +104,7 @@ namespace GameBoardServer
                     {
                         if(gameBoard.MovePiece(from, to))
                         {
-                            logMessage($"{playerColor} made a move from ({from.x}, {from.y}) to ({to.x}, {to.y})");
+                            logMessage($"{playerColor}: ({from.x}, {from.y}) , ({to.x}, {to.y})", player);
                             if (!gameBoard.PromotionPossibleForTeam(playerColor))
                             {
                                 foreach(Player p in players)
@@ -104,10 +114,32 @@ namespace GameBoardServer
                                 }
                                 whiteTurn = !whiteTurn;
                             }
+
+                            //check and checkmate feedback
+                            if (gameBoard.CheckForCheck(gameBoard.blackKing))
+                            {
+                                headerMessageForAll("black is in check!");
+                                ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.blackKing));
+                            }else if (gameBoard.CheckForCheck(gameBoard.whiteKing))
+                            {
+                                headerMessageForAll("White is in check!");
+                                ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.whiteKing));
+                            }
+
+                            if (gameBoard.CheckForCheckmate(gameBoard.blackKing))
+                            {
+                                headerMessageForAll("Black is in checkmate!");
+                                ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.blackKing));
+                            }
+                            else if (gameBoard.CheckForCheckmate(gameBoard.whiteKing))
+                            {
+                                headerMessageForAll("White is in checkmate!");
+                                ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.whiteKing));
+                            }
+
                         }
                         else
                         {
-                            headerMessage("That is an illegal move!", player);
                             ColorSquareMessageRed(to, player);
                             ColorSquareMessageRed(from, player);
 
@@ -145,11 +177,22 @@ namespace GameBoardServer
                 p.sendData(Interpreter.WriteInfoMessage(2, message));
             }
         }
-        private void logMessage(string message)
+        private void logMessage(string message, Player player)
         {
             foreach (Player p in players)
             {
                 p.sendData(Interpreter.WriteInfoMessage(1, message));
+            }
+
+            if (!messageListDictionary.ContainsKey(player))
+            {
+                List<string> messageList = new List<string>();
+                messageListDictionary.Add(player, messageList);
+                messageList.Add(message);
+            }
+            else
+            {
+                messageListDictionary[player].Add(message);
             }
         }
 
@@ -207,6 +250,20 @@ namespace GameBoardServer
                 p.sendData(Interpreter.WriteColorSquareMessage(allColoredSquiares[i], 0, 0, 0, 0));
             }
             colorListDictionary[p].Clear();  
+        }
+
+        //clear the log from all messages belonging to specific player
+        private void ClearAllLogMessages(Player p)
+        {
+            if (!messageListDictionary.ContainsKey(p))
+                return;
+
+            messageListDictionary[p].Clear();
+             
+        }
+        private void AjDetArOavgjort()
+        {
+            headerMessageForAll("It's a draw!");
         }
     }
 }

@@ -90,14 +90,14 @@ namespace GameBoardServer
         {
             Piece[,] boardState = new Piece[8, 8];
             string[] messages = message.Split(' ');
-            if (messages.Length != 64)
+            if (messages.Length != 65 && messages[0] != "H")
                 return false;
 
             for (int x = 0; x < 8; x++)
             {
                 for (int y = 0; y < 8; y++)
                 {
-                    ReadPiece(messages[y * 8 + x], ref gameBoard, out Piece p);
+                    ReadPiece(messages[(y * 8 + x) + 1], ref gameBoard, out Piece p);
                     boardState[x, y] = p;
                 }
             }
@@ -216,7 +216,7 @@ namespace GameBoardServer
                     result += WritePiece(pieces[x, y]) + " ";
                 }
             }
-            return result.Substring(0, result.Length-1) + "|";
+            return "H" + " " + result.Substring(0, result.Length-1) + "|";
         }
         public static string WritePromotePiece(Vector2Int from, string promoteType)
         {
