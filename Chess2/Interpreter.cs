@@ -162,7 +162,94 @@ namespace GameBoardServer
             a = 0;
             return false;
         }
+        public static bool ReadResign(string message, out int gameID)
+        {
+            string[] messages = message.Split(' ');
 
+            if (messages.Length == 2 && messages[0] == "R")
+            {
+                gameID = int.Parse(messages[1]);
+                return true;
+            }
+
+            gameID = -1;
+            return false;
+        }
+        public static bool ReadOfferDraw(string message, out int gameID)
+        {
+            string[] messages = message.Split(' ');
+
+            if (messages.Length == 2 && messages[0] == "O")
+            {
+                gameID = int.Parse(messages[1]);
+                return true;
+            }
+
+            gameID = -1;
+            return false;
+        }
+        public static bool ReadRematch(string message, out int gameID, out int wantsRematch)
+        {
+            string[] messages = message.Split(' ');
+
+            if (messages.Length == 3 && messages[0] == "Q")
+            {
+                gameID = int.Parse(messages[1]);
+                wantsRematch = int.Parse(messages[2]);
+                return true;
+            }
+
+            gameID = -1;
+            wantsRematch = -1;
+            return false;
+        }
+        public static bool ReadPlayerWonMessage(string message, out string winner)
+        {
+            string[] messages = message.Split(' ');
+            if(messages.Length == 2 && messages[0] == "Z")
+            {
+                winner = messages[1];
+                return true;
+            }
+
+            winner = "";
+            return false;
+        }
+        public static bool ReadSetupGameMessage(string message)
+        {
+            string[] messages = message.Split(' ');
+            if (messages.Length == 1 && messages[0] == "U")
+            {
+                return true;
+            }
+
+            return false;
+        }
+        public static bool ReadActivateDrawWindow(string message, out int gameID)
+        {
+            string[] messages = message.Split(' ');
+
+            if (messages.Length == 2 && messages[0] == "D")
+            {
+                gameID = int.Parse(messages[1]);
+                return true;
+            }
+            gameID = -1;
+            return false;
+        }
+        public static bool ReadDrawDecision(string message, out int decision)
+        {
+            string[] messages = message.Split(' ');
+
+            if (messages.Length == 2 && messages[0] == "E")
+            {
+                decision = int.Parse(messages[1]);
+                return true;
+            }
+
+            decision = -1;
+            return false;
+        }
         public static string WriteColorSquareMessage(Vector2Int square, int r, int g, int b, int a)
         {
             return "C " + square.x + "," + square.y + " " + r + "," + g + "," + b + "," + a + "|";
@@ -221,6 +308,34 @@ namespace GameBoardServer
         public static string WritePromotePiece(Vector2Int from, string promoteType)
         {
             return "P" + from.x + "," + from.y + promoteType + "|";
+        }
+        public static string WriteResign(int gameID)
+        {
+            return "R " + gameID + "|";
+        }
+        public static string WriteRematch(int gameID, int wantsRematch)
+        {
+            return "Q " + gameID + " " + wantsRematch + "|";
+        }
+        public static string WriteOfferDraw(int gameID)
+        {
+            return "O " + gameID + "|";
+        }
+        public static string WritePlayerWonMessage(string winner)
+        {
+            return "Z " + winner + "|";
+        }
+        public static string WriteSetUpGameMessage()
+        {
+            return "U";
+        }
+        public static string WriteActivateDrawWindow(int gameID)
+        {
+            return "D " + gameID + "|";
+        }
+        public static string WriteDrawDecision(int gameID, int decision)
+        {
+            return "E " + decision + "|";
         }
     }
 }

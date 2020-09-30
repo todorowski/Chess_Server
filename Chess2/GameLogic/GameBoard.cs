@@ -153,45 +153,18 @@ public class GameBoard
     //Inteface
     public bool MovePiece(Vector2Int from, Vector2Int to)
     {
-        //kolla vilket lag, sätt till null
-        //check whose turn it is, set to true/false based on this
-        if(boardState[from.x, from.y].Color == "white" && boardState[from.x, from.y] is Pawn && (from.y - to.y == 2))
-        {
-            LastWhitePawnToMoveTwoSteps = boardState[from.x, from.y];
-        }
-        if(boardState[from.x, from.y].Color == "black" && boardState[from.x, from.y] is Pawn && (from.y - to.y == 2))
-        {
-            LastBlackPawnToMoveTwoSteps = boardState[from.x, from.y];
-        }
-
-        LastWhitePawnToMoveTwoSteps = null;
-        LastBlackPawnToMoveTwoSteps = null;
 
         if (!MovePieceIsLegal(from, to))
             return false;
 
-        //Is this enpassant 
-        if (DoEnpassant(from, to))
-        {
-            howCloseToRemi = 0;
-            //only set to null if I am the one who does en passant
+        Piece movedPiece = boardState[from.x, from.y];
 
-            if(boardState[from.x, from.y].Color == "white")
-            {
-                LastWhitePawnToMoveTwoSteps = null;
-            }
-            else
-            {
-                LastBlackPawnToMoveTwoSteps = null;
-            }
-            return true;
-        }
         //Is this a castle
         if (DoCastling(from, to))
         {
             howCloseToRemi++;
 
-            if(boardState[from.x, from.y].Color == "white")
+            if(movedPiece.Color == "white")
             {
                 LastWhitePawnToMoveTwoSteps = null;
             }
@@ -202,15 +175,52 @@ public class GameBoard
             return true;
         }
 
-        //Move piece
+        //Is this en passant 
+        if (DoEnpassant(from, to))
+        {
+            howCloseToRemi = 0;
+            //only set to null if I am the one who does en passant
 
+            if (movedPiece.Color == "white")
+            {
+                LastWhitePawnToMoveTwoSteps = null;
+            }
+            else
+            {
+                LastBlackPawnToMoveTwoSteps = null;
+            }
+            return true;
+        }
+
+        //If you move any piece and its not a castling or en passant set the last moved pawn to null
+        if (movedPiece.Color == "white")
+        {
+            LastWhitePawnToMoveTwoSteps = null;
+        }
+        else
+        {
+            LastBlackPawnToMoveTwoSteps = null;
+        }
+
+        //Allow en passant on this pawn
+        if ((movedPiece is Pawn && Math.Abs(to.y - from.y) == 2))
+        {
+            if(movedPiece.Color == "white")
+            {
+                LastWhitePawnToMoveTwoSteps = movedPiece;
+            }
+            else 
+            { 
+                LastBlackPawnToMoveTwoSteps = movedPiece;
+            }
+        }
+
+        //Move piece
         Piece killedPiece = boardState[to.x, to.y];
-        Piece movedPiece = boardState[from.x, from.y];
         RemovePiece(killedPiece);
         boardState[to.x, to.y] = movedPiece;
         boardState[from.x, from.y] = null;
         movedPiece.HasMoved = true;
-
         //50 moves remi rule
         howCloseToRemi++;
         if (killedPiece != null || movedPiece is Pawn)
@@ -223,6 +233,7 @@ public class GameBoard
             remiCallback?.Invoke();
             return false;
         }
+        
         return true;
     }
     public bool PromotePieceTo(Vector2Int from, string promotionPiece)
@@ -354,30 +365,30 @@ public class GameBoard
             //en passant in right diagonal
             if (to.y == 2 && to.x == (from.x + 1))
             {
-                if (boardState[from.x + 1, from.y] != null && boardState[from.x + 1, from.y].Color == "white" && boardState[from.x + 1, from.y] is Pawn && boardState[to.x, to.y] == LastBlackPawnToMoveTwoSteps)
+                if (boardState[from.x + 1, from.y] != null && boardState[from.x + 1, from.y].Color == "white" && boardState[from.x + 1, from.y] is Pawn && boardState[from.x + 1, from.y] == LastWhitePawnToMoveTwoSteps)
                 {
                     return true;
                 }
             //en passant in left diagonal
             }else if (to.y == 2 && to.x == (from.x - 1))
             {
-                if(boardState[from.x - 1, from.y] != null && boardState[from.x - 1, from.y].Color == "white" && boardState[from.x - 1, from.y] is Pawn && boardState[to.x, to.y] == LastBlackPawnToMoveTwoSteps)
+                if(boardState[from.x - 1, from.y] != null && boardState[from.x - 1, from.y].Color == "white" && boardState[from.x - 1, from.y] is Pawn && boardState[from.x - 1, from.y] == LastWhitePawnToMoveTwoSteps)
                 {
                     return true;
                 }
             }
-        //white pawn is the attacke
+        //white pawn is the attacker
         }else if(pawn.Color == "white")
         {
             if(to.y == 5 && to.x == (from.x + 1))
             {
-                if(boardState[from.x + 1, from.y] != null && boardState[from.x + 1, from.y].Color == "black" && boardState[from.x + 1, from.y] is Pawn && boardState[to.x, to.y] == LastWhitePawnToMoveTwoSteps)
+                if(boardState[from.x + 1, from.y] != null && boardState[from.x + 1, from.y].Color == "black" && boardState[from.x + 1, from.y] is Pawn && boardState[from.x + 1, from.y] == LastBlackPawnToMoveTwoSteps)
                 {
                     return true;
                 }
             }else if(to.y == 5 && to.x == (from.x - 1))
             {
-                if (boardState[from.x - 1, from.y] != null && boardState[from.x - 1, from.y].Color == "black" && boardState[from.x - 1, from.y] is Pawn && boardState[to.x, to.y] == LastWhitePawnToMoveTwoSteps)
+                if (boardState[from.x - 1, from.y] != null && boardState[from.x - 1, from.y].Color == "black" && boardState[from.x - 1, from.y] is Pawn && boardState[from.x + 1, from.y] == LastBlackPawnToMoveTwoSteps)
                 {
                     return true;
                 }

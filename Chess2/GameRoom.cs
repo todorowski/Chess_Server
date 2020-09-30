@@ -12,6 +12,11 @@ namespace GameBoardServer
         Dictionary<Player, List<string>> messageListDictionary = new Dictionary<Player, List<string>>();
         int gameRoomID;
         bool whiteTurn = true;
+        bool gameEnded = false;
+        bool whiteWantsRematch = false;
+        bool blackWantsRematch = false;
+        bool whiteAcceptsDraw = false;
+        bool blackAcceptsDraw = false;
 
         public GameRoom(int ID)
         {
@@ -79,10 +84,16 @@ namespace GameBoardServer
             }
 
             //Player is attempting to act out of turn
+            //player should still be able to press rematch
+            bool actingOutOfTurn = false;
             if ((playerColor == "white" && !whiteTurn) || (playerColor == "black" && whiteTurn))
             {
-                Console.WriteLine("Player is acting out of turn");
-                return;
+                if (!gameEnded)
+                {
+                    Console.WriteLine("Player is acting out of turn");
+                    actingOutOfTurn = true;
+                }
+                
             }  
 
             lock(gameBoard)
@@ -90,74 +101,60 @@ namespace GameBoardServer
                 //Is promotion message?
                 if (Interpreter.ReadPromotePiece(message, out Vector2Int from, out string promoteTo) && gameBoard.PromotionPossibleForTeam(playerColor))
                 {
-                    Console.WriteLine(playerColor + " promoted a piece to " + promoteTo + " : " + message);
-                    if (gameBoard.PromotePieceTo(from, promoteTo))
-                        whiteTurn = !whiteTurn;
+                    if (actingOutOfTurn)
+                        return;
+
+                    PromotePiece(playerColor, from, promoteTo, message);
                 }
 
                 //Move a piece 
                 if (Interpreter.ReadMovePiece(message, out from, out Vector2Int to) && !gameBoard.PromotionPossibleForTeam(playerColor))
                 {
-                    ClearAllColor(player);
-                    Console.WriteLine(playerColor + " player made move: " + message);
-                    if (gameBoard.GetPiece(from) != null && playerColor == gameBoard.GetPiece(from).Color)
+                    if (actingOutOfTurn)
+                        return;
+                    MakeMove(player, playerColor, from, to, message);
+                    
+                }
+
+                //When player resigns, other player wins and win screen is shown on client side
+                if (Interpreter.ReadResign(message, out gameRoomID))
+                {
+                    PlayerResignFromGame(playerColor); 
+                }
+
+                //Check if players want a Rematch
+                //check first if one player has pressed rematch and then if the remaining player also does so
+                
+                if (Interpreter.ReadRematch(message, out gameRoomID, out int wantsRematch))
+                {
+                    CheckIfPlayersWantRematch(playerColor);   
+                }
+
+                if(Interpreter.ReadOfferDraw(message, out gameRoomID))
+                {
+                    foreach(Player p in players)
                     {
-                        if(gameBoard.MovePiece(from, to))
-                        {
-                            logMessage($"{playerColor}: ({from.x}, {from.y}) , ({to.x}, {to.y})", player);
-                            if (!gameBoard.PromotionPossibleForTeam(playerColor))
-                            {
-                                foreach(Player p in players)
-                                {
-                                    ColorSquareMessageGreen(to, p);
-                                    ColorSquareMessageGreen(from, p);
-                                }
-                                whiteTurn = !whiteTurn;
-                            }
+                        p.sendData(Interpreter.WriteActivateDrawWindow(gameRoomID));
+                    }
+                }
 
-                            //check and checkmate feedback
-                            if (gameBoard.CheckForCheck(gameBoard.blackKing))
-                            {
-                                headerMessageForAll("black is in check!");
-                                ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.blackKing));
-                            }else if (gameBoard.CheckForCheck(gameBoard.whiteKing))
-                            {
-                                headerMessageForAll("White is in check!");
-                                ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.whiteKing));
-                            }
+                if(Interpreter.ReadDrawDecision(message, out int decision))
+                {
+                    if (decision == 1 && player == players[0])
+                    {
+                        whiteAcceptsDraw = true;
+                    }
 
-                            if (gameBoard.CheckForCheckmate(gameBoard.blackKing))
-                            {
-                                headerMessageForAll("Black is in checkmate!");
-                                ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.blackKing));
-                            }
-                            else if (gameBoard.CheckForCheckmate(gameBoard.whiteKing))
-                            {
-                                headerMessageForAll("White is in checkmate!");
-                                ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.whiteKing));
-                            }
+                    if (decision == 1 && player == players[1])
+                    {
+                        blackAcceptsDraw = true;
+                    }
 
-                        }
-                        else
-                        {
-                            ColorSquareMessageRed(to, player);
-                            ColorSquareMessageRed(from, player);
-
-                            for(int i = 0; i < 8; i++)
-                            {
-                                for(int j = 0; j < 8; j++)
-                                {
-                                    Vector2Int square = new Vector2Int(i, j);
-
-                                    if (gameBoard.GetPiece(from).CheckMove(square))
-                                    {
-                                        ColorSquareMessageYellow(from, player);
-                                        ColorSquareMessageYellow(square, player);
-                                    }
-                                }
-                            }
-                            
-                        }
+                    if (whiteAcceptsDraw && blackAcceptsDraw)
+                    {
+                        gameEnded = true;
+                        foreach (Player p in players)
+                            p.sendData(Interpreter.WritePlayerWonMessage("Draw!"));
                     }
                 }
 
@@ -264,6 +261,141 @@ namespace GameBoardServer
         private void AjDetArOavgjort()
         {
             headerMessageForAll("It's a draw!");
+            foreach(Player player in players)
+            {
+                Interpreter.WritePlayerWonMessage("");
+            }
+        }
+
+        private void Rematch()
+        {
+            gameBoard = new GameBoard();
+            blackWantsRematch = false;
+            whiteWantsRematch = false;
+
+            foreach (Player p in players)
+            {
+                ClearAllColor(p);
+                ClearAllLogMessages(p);
+                p.sendData(Interpreter.WriteSetUpGameMessage());
+                p.sendData(Interpreter.WriteGameBoard(gameBoard.GetBoardState()));
+            }
+         
+        }
+
+        private void PromotePiece(string playerColor, Vector2Int from, string promoteTo, string message)
+        {
+            Console.WriteLine(playerColor + " promoted a piece to " + promoteTo + " : " + message);
+            if (gameBoard.PromotePieceTo(from, promoteTo))
+                whiteTurn = !whiteTurn;
+        }
+
+        private void MakeMove(Player player, string playerColor, Vector2Int from, Vector2Int to, string message)
+        {
+            ClearAllColor(player);
+            Console.WriteLine(playerColor + " player made move: " + message);
+            if (gameBoard.GetPiece(from) != null && playerColor == gameBoard.GetPiece(from).Color)
+            {
+                if (gameBoard.MovePiece(from, to))
+                {
+                    logMessage($"{playerColor}: ({from.x}, {from.y}) , ({to.x}, {to.y})", player);
+                    if (!gameBoard.PromotionPossibleForTeam(playerColor))
+                    {
+                        foreach (Player p in players)
+                        {
+                            ColorSquareMessageGreen(to, p);
+                            ColorSquareMessageGreen(from, p);
+                        }
+                        whiteTurn = !whiteTurn;
+                    }
+
+                    //check and checkmate feedback
+                    if (gameBoard.CheckForCheck(gameBoard.blackKing))
+                    {
+                        headerMessageForAll("black is in check!");
+                        ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.blackKing));
+                    }
+                    else if (gameBoard.CheckForCheck(gameBoard.whiteKing))
+                    {
+                        headerMessageForAll("White is in check!");
+                        ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.whiteKing));
+                    }
+
+                    if (gameBoard.CheckForCheckmate(gameBoard.blackKing))
+                    {
+                        headerMessageForAll("Black is in checkmate!");
+                        ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.blackKing));
+                        foreach (Player p in players)
+                        {
+                            Interpreter.WritePlayerWonMessage("white");
+                        }
+                    }
+                    else if (gameBoard.CheckForCheckmate(gameBoard.whiteKing))
+                    {
+                        headerMessageForAll("White is in checkmate!");
+                        ColorSquareMessageRedForAll(gameBoard.GetPiecePosition(gameBoard.whiteKing));
+                        foreach (Player p in players)
+                        {
+                            Interpreter.WritePlayerWonMessage("black");
+                        }
+
+                    }
+
+                }
+                else
+                {
+                    ColorSquareMessageRed(to, player);
+                    ColorSquareMessageRed(from, player);
+
+                    for (int i = 0; i < 8; i++)
+                    {
+                        for (int j = 0; j < 8; j++)
+                        {
+                            Vector2Int square = new Vector2Int(i, j);
+
+                            if (gameBoard.GetPiece(from).CheckMove(square))
+                            {
+                                ColorSquareMessageYellow(from, player);
+                                ColorSquareMessageYellow(square, player);
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
+
+        private void PlayerResignFromGame(string playerColor)
+        {
+            gameEnded = true;
+            string color = "";
+
+            color = playerColor == "white" ? "black" : "white";
+            headerMessageForAll(color + "Player" + " " + "won!");
+            foreach (Player p in players)
+            {
+                p.sendData(Interpreter.WritePlayerWonMessage(color));
+
+            }
+        }
+
+        private void CheckIfPlayersWantRematch(string playerColor)
+        {
+            if (playerColor == "white")
+            {
+                whiteWantsRematch = true;
+            }
+
+            if (playerColor == "black")
+            {
+                blackWantsRematch = true;
+            }
+
+            if(whiteWantsRematch && blackWantsRematch)
+            {
+                gameEnded = false;
+                Rematch();
+            }
         }
     }
 }
