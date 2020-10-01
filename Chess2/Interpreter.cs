@@ -327,7 +327,7 @@ namespace GameBoardServer
         }
         public static string WriteSetUpGameMessage()
         {
-            return "U";
+            return "U" + "|";
         }
         public static string WriteActivateDrawWindow(int gameID)
         {

@@ -140,22 +140,7 @@ namespace GameBoardServer
 
                 if(Interpreter.ReadDrawDecision(message, out int decision))
                 {
-                    if (decision == 1 && player == players[0])
-                    {
-                        whiteAcceptsDraw = true;
-                    }
-
-                    if (decision == 1 && player == players[1])
-                    {
-                        blackAcceptsDraw = true;
-                    }
-
-                    if (whiteAcceptsDraw && blackAcceptsDraw)
-                    {
-                        gameEnded = true;
-                        foreach (Player p in players)
-                            p.sendData(Interpreter.WritePlayerWonMessage("Draw!"));
-                    }
+                    CheckPlayersDrawDecisions(player, playerColor, decision);
                 }
 
                 Console.WriteLine("Sending all players in " + gameRoomID + " the boardState");
@@ -395,6 +380,42 @@ namespace GameBoardServer
             {
                 gameEnded = false;
                 Rematch();
+            }
+        }
+
+        private void CheckPlayersDrawDecisions(Player player, string playerColor, int decision)
+        {
+            //players want a draw
+            if (decision == 1 && player == players[0])
+            {
+                whiteAcceptsDraw = true;
+            }
+
+            if (decision == 1 && player == players[1])
+            {
+                blackAcceptsDraw = true;
+            }
+
+            if (whiteAcceptsDraw && blackAcceptsDraw)
+            {
+                gameEnded = true;
+                foreach (Player p in players)
+                    p.sendData(Interpreter.WritePlayerWonMessage("Draw!"));
+                whiteAcceptsDraw = false;
+                blackAcceptsDraw = false;
+            }
+
+            //players do not want a draw
+            if (decision == 0 && player == players[0])
+            {
+                headerMessageForAll("White did not accept draw");
+                whiteAcceptsDraw = false;
+            }
+
+            if (decision == 0 && player == players[1])
+            {
+                headerMessageForAll("Black did not accept draw");
+                blackAcceptsDraw = false;
             }
         }
     }
