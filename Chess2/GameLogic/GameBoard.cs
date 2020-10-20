@@ -13,6 +13,10 @@ public class GameBoard
 
     public Piece LastWhitePawnToMoveTwoSteps;
     public Piece LastBlackPawnToMoveTwoSteps;
+    public Piece killed;
+
+    public bool whitePiecesAtBottomOfBoard = false;
+    public bool blackPiecesAtBottomOfBoard = false;
 
     private int howCloseToRemi = 0;
     //Constructor
@@ -26,7 +30,7 @@ public class GameBoard
             AddPiece(new Pawn(this, "white"), new Vector2Int(i, 1));
         }
         //Suites
-        AddPiece(new Tower(this, "white"), new Vector2Int(0,0));
+        AddPiece(new Tower(this, "white"), new Vector2Int(0, 0));
         AddPiece(new Knight(this, "white"), new Vector2Int(1, 0));
         AddPiece(new Bishop(this, "white"), new Vector2Int(2, 0));
         AddPiece(new Queen(this, "white"), new Vector2Int(3, 0));
@@ -51,7 +55,24 @@ public class GameBoard
         AddPiece(new Bishop(this, "black"), new Vector2Int(5, 7));
         AddPiece(new Knight(this, "black"), new Vector2Int(6, 7));
         AddPiece(new Tower(this, "black"), new Vector2Int(7, 7));
+ 
     }
+
+    public void chooseSide(string color)
+    {
+        if(color == "white")
+        {
+            whitePiecesAtBottomOfBoard = true;
+            blackPiecesAtBottomOfBoard = false;
+        }
+
+        if(color == "black")
+        {
+            whitePiecesAtBottomOfBoard = false;
+            blackPiecesAtBottomOfBoard = true;
+        }
+    }
+
     //Public Methods
     public bool CheckForCheck(Vector2Int square, string attackingTeam)
     {
@@ -233,7 +254,7 @@ public class GameBoard
             remiCallback?.Invoke();
             return false;
         }
-        
+        killed = killedPiece;
         return true;
     }
     public bool PromotePieceTo(Vector2Int from, string promotionPiece)
@@ -305,7 +326,7 @@ public class GameBoard
         boardState[boardPosition.x, boardPosition.y] = piece;
         return true;
     }
-    private bool RemovePiece(Piece piece)
+    public bool RemovePiece(Piece piece)
     {
         if (piece == null)
             return false;

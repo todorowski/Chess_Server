@@ -7,7 +7,7 @@ namespace GameBoardServer
     class GameRoom
     {
         GameBoard gameBoard = new GameBoard();
-        List<Player> players = new List<Player>();
+        public List<Player> players = new List<Player>();
         Dictionary<Player, List<Vector2Int>> colorListDictionary = new Dictionary<Player, List<Vector2Int>>();
         Dictionary<Player, List<string>> messageListDictionary = new Dictionary<Player, List<string>>();
         int gameRoomID;
@@ -15,6 +15,7 @@ namespace GameBoardServer
         bool gameEnded = false;
         bool whiteWantsRematch = false;
         bool blackWantsRematch = false;
+        public bool rematch = false;
         bool whiteAcceptsDraw = false;
         bool blackAcceptsDraw = false;
 
@@ -30,7 +31,9 @@ namespace GameBoardServer
             if(players.Count == 1)
             {
                 headerMessage("You play as white", p);
-            }else if(players.Count == 2)
+               
+            }
+            else if(players.Count == 2)
             {
                 headerMessage("You play as black", p);
             }
@@ -93,7 +96,6 @@ namespace GameBoardServer
                     Console.WriteLine("Player is acting out of turn");
                     actingOutOfTurn = true;
                 }
-                
             }  
 
             lock(gameBoard)
@@ -113,7 +115,6 @@ namespace GameBoardServer
                     if (actingOutOfTurn)
                         return;
                     MakeMove(player, playerColor, from, to, message);
-                    
                 }
 
                 //When player resigns, other player wins and win screen is shown on client side
@@ -152,6 +153,7 @@ namespace GameBoardServer
         {
             p.sendData(Interpreter.WriteInfoMessage(2, message));
         }
+    
         private void headerMessageForAll(string message)
         {
             foreach (Player p in players)
@@ -257,6 +259,8 @@ namespace GameBoardServer
             gameBoard = new GameBoard();
             blackWantsRematch = false;
             whiteWantsRematch = false;
+            rematch = false;
+            whiteTurn = true;
 
             foreach (Player p in players)
             {
@@ -265,7 +269,6 @@ namespace GameBoardServer
                 p.sendData(Interpreter.WriteSetUpGameMessage());
                 p.sendData(Interpreter.WriteGameBoard(gameBoard.GetBoardState()));
             }
-         
         }
 
         private void PromotePiece(string playerColor, Vector2Int from, string promoteTo, string message)
@@ -323,9 +326,26 @@ namespace GameBoardServer
                         {
                             Interpreter.WritePlayerWonMessage("black");
                         }
-
                     }
+                   
+                    if (gameBoard.killed != null)
+                    {
+                        //A PIECE WAS KILLED!
+                        Console.Write("A PIECE WAS KILLED!");
+                        string pieceType = gameBoard.killed.GetType().ToString();
+                        Console.Write("THE TYPE WAS" + pieceType);
 
+                        //check color of piece
+                        //send message to that player
+                        if(gameBoard.killed.Color == "black")
+                        {
+                            headerMessageForAll("Black " + pieceType + " was taken!");
+                        }
+                        else
+                        {
+                            headerMessageForAll("White " + pieceType + " was taken!");
+                        }
+                    }
                 }
                 else
                 {
@@ -369,16 +389,27 @@ namespace GameBoardServer
             if (playerColor == "white")
             {
                 whiteWantsRematch = true;
+                if(whiteWantsRematch && !blackWantsRematch)
+                {
+                    headerMessageForAll("White wanted rematch, waiting for other player...");
+                }
+               
             }
 
             if (playerColor == "black")
             {
                 blackWantsRematch = true;
+                if(blackWantsRematch && !whiteWantsRematch)
+                {
+                    headerMessageForAll("Black wanted rematch, waiting for other player...");
+                }
             }
 
             if(whiteWantsRematch && blackWantsRematch)
             {
+                headerMessageForAll("It's a rematch!");
                 gameEnded = false;
+                rematch = true;
                 Rematch();
             }
         }
@@ -389,13 +420,15 @@ namespace GameBoardServer
             if (decision == 1 && player == players[0])
             {
                 whiteAcceptsDraw = true;
+                headerMessageForAll("White accepts draw, waiting for other player...");
             }
 
             if (decision == 1 && player == players[1])
             {
                 blackAcceptsDraw = true;
+                headerMessageForAll("Black accepts draw, waiting for other player...");
             }
-
+         
             if (whiteAcceptsDraw && blackAcceptsDraw)
             {
                 gameEnded = true;
